@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Copyright>Defer to Expertise LLC © 2021</Copyright>
+    <PackageLicenseExpression>GPL-3.0-or-later </PackageLicenseExpression>
+    <AnalysisLevel>preview</AnalysisLevel>
+    <Nullable>warnings</Nullable>
+    <DebugType>none</DebugType>
+    <GenerateDocumentationFile>False</GenerateDocumentationFile>
+    <SignAssembly>False</SignAssembly>
+    <Version>1.0.1</Version>
+    <Authors>Chris Chance</Authors>
+    <Company>Defer to Expertise LLC</Company>
+    <Description>Quick and dirty memoization cache of method runs to a redis backend.</Description>
+    <PackageReadmeFile>Readme.md</PackageReadmeFile>
+    <PackageTags>Memoize; Cache; Redis;</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="5.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="5.0.0" />
+    <PackageReference Include="RedisCore" Version="0.2.10" />
+    <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Readme.md">
+      <Pack>true</Pack>
+      <PackagePath>\</PackagePath>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Readme.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+
+</Project>
