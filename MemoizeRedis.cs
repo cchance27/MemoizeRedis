@@ -9,7 +9,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Text.Json;
 using Serilog;
-using System.Reflection;
 
 namespace MemoizeRedis
 {
@@ -32,6 +31,25 @@ namespace MemoizeRedis
         private Settings _settings { get; init; }
         private SHA256 _sha256 { get; init; }
 
+        public static async Task<T> WithRedisAsync<T>(Expression<Func<Task<T>>> functionToCache)
+        {
+            var body = (System.Linq.Expressions.MethodCallExpression)functionToCache.Body;
+            string argumentString = ArgumentsToString(body);
+
+            // Generate a hashed key for storage based on the expression body
+            string key = GetHash(Instance._sha256, body.Method.Name + argumentString);
+
+            // Check If We have a Cached Copy if so we return it.
+            string resultJson = await CheckCacheForKey(key);
+            if (resultJson != "")
+                return JsonSerializer.Deserialize<T>(resultJson);
+
+            // We didn't have a cached copy let's run our expression
+            T resultFresh = await functionToCache.Compile().Invoke();
+            await SaveToCache<T>(key, resultFresh);
+            return resultFresh;
+        }
+
         public static async Task<T> WithRedisAsync<T>(Expression<Func<T>> functionToCache)
         {
             var body = (System.Linq.Expressions.MethodCallExpression)functionToCache.Body;
@@ -40,15 +58,29 @@ namespace MemoizeRedis
             // Generate a hashed key for storage based on the expression body
             string key = GetHash(Instance._sha256, body.Method.Name + argumentString);
 
-            Optional<string> result;
+            // Check If We have a Cached Copy if so we return it.
+            string resultJson = await CheckCacheForKey(key);
+            if (resultJson != "")
+                return JsonSerializer.Deserialize<T>(resultJson);
+
+            // We didn't have a cached copy let's run our expression
+            T resultFresh = functionToCache.Compile().Invoke();
+            await SaveToCache<T>(key, resultFresh);
+            return resultFresh;
+        }
+
+        private static async Task<string> CheckCacheForKey(string key)
+        {
+            string resultJson = "";
+
             try
             {
                 // Check if we have a cached copy in redis
-                result = await Instance._redis.Get<string>(key);
+                Optional<string> result = await Instance._redis.Get<string>(key);
                 if (result.HasValue)
                 {
                     Instance.Logger.Information("Redis Cache Returned for {key}", key);
-                    return JsonSerializer.Deserialize<T>(result.Value);
+                    resultJson = result.Value;
                 }
             }
             catch (Exception err)
@@ -56,9 +88,11 @@ namespace MemoizeRedis
                 Instance.Logger.Warning("Failed to get cache from Redis Server ({server}): {error}", Instance._endpoint.ToString(), err.Message);
             }
 
-            // We didn't have a cached copy let's run our expression
-            T resultFresh = functionToCache.Compile().Invoke();
+            return resultJson;
+        }
 
+        private static async Task SaveToCache<T>(string key, T resultFresh)
+        {
             try
             {
                 // Since we have a result let's cache this value
@@ -71,9 +105,6 @@ namespace MemoizeRedis
             {
                 Instance.Logger.Warning("Failed to store cache to Redis Server ({server}): {error}", Instance._endpoint.ToString(), err.Message);
             }
-
-            // Return our fresh copy result.
-            return resultFresh;
         }
 
         private static string ArgumentsToString(MethodCallExpression body)

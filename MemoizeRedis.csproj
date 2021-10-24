@@ -7,15 +7,17 @@
     <PackageLicenseExpression>GPL-3.0-or-later </PackageLicenseExpression>
     <AnalysisLevel>preview</AnalysisLevel>
     <Nullable>warnings</Nullable>
-    <DebugType>none</DebugType>
+    <DebugType>full</DebugType>
     <GenerateDocumentationFile>False</GenerateDocumentationFile>
     <SignAssembly>False</SignAssembly>
-    <Version>1.0.1</Version>
+    <Version>1.1.0</Version>
     <Authors>Chris Chance</Authors>
     <Company>Defer to Expertise LLC</Company>
     <Description>Quick and dirty memoization cache of method runs to a redis backend.</Description>
     <PackageReadmeFile>Readme.md</PackageReadmeFile>
     <PackageTags>Memoize; Cache; Redis;</PackageTags>
+    <PackageReleaseNotes>Added support for passing async functions to the cache as well.</PackageReleaseNotes>
+    <RepositoryUrl>https://github.com/cchance27/MemoizeRedis</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
