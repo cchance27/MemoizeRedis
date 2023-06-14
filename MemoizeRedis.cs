@@ -25,19 +25,18 @@ namespace MemoizeRedis
                 return _instance;
             } 
         }
+
         public ILogger Logger { get; set; }
         private IPEndPoint _endpoint { get; set; }
         private RedisClient _redis { get; set; }
         private Settings _settings { get; init; }
-        private SHA256 _sha256 { get; init; }
-
         public static async Task<T> WithRedisAsync<T>(Expression<Func<Task<T>>> functionToCache)
         {
             var body = (System.Linq.Expressions.MethodCallExpression)functionToCache.Body;
             string argumentString = ArgumentsToString(body);
 
             // Generate a hashed key for storage based on the expression body
-            string key = GetHash(Instance._sha256, body.Method.Name + argumentString);
+            string key = GetHash(body.Method.Name + argumentString);
 
             // Check If We have a Cached Copy if so we return it.
             string resultJson = await CheckCacheForKey(key);
@@ -56,7 +55,7 @@ namespace MemoizeRedis
             string argumentString = ArgumentsToString(body);
 
             // Generate a hashed key for storage based on the expression body
-            string key = GetHash(Instance._sha256, body.Method.Name + argumentString);
+            string key = GetHash(body.Method.Name + argumentString);
 
             // Check If We have a Cached Copy if so we return it.
             string resultJson = await CheckCacheForKey(key);
@@ -112,7 +111,7 @@ namespace MemoizeRedis
             var arguments = "";
             foreach (var argument in body.Arguments)
             {
-                if (argument.NodeType == ExpressionType.Constant)
+                if (argument.NodeType == ExpressionType.Constant || argument.NodeType == ExpressionType.NewArrayInit)
                 {
                     arguments = arguments + argument.ToString();
                     continue;
@@ -120,9 +119,19 @@ namespace MemoizeRedis
 
                 var exp = ResolveMemberExpression(argument);
 
-                var value = GetValue(exp);
-                arguments = arguments + JsonSerializer.Serialize(value);
-
+                if (exp is not null)
+                {
+                    var value = GetValue(exp);
+                    arguments = arguments + JsonSerializer.Serialize(value);
+                }
+                else
+                {
+                    try
+                    {
+                        arguments = arguments + JsonSerializer.Serialize(argument.ToString());
+                    }
+                    catch { }
+                }
             }
 
             return arguments;
@@ -159,14 +168,16 @@ namespace MemoizeRedis
             }
             else
             {
-                throw new NotImplementedException();
+                return null;
             }
         }
 
-        private static string GetHash(SHA256 sha256, string value)
+        private static string GetHash(string value)
         {
             var valueBytes = Encoding.UTF8.GetBytes(value);
+            var sha256 = SHA256.Create();
             var hash = sha256.ComputeHash(valueBytes);
+            sha256.Dispose();
             return Convert.ToBase64String(hash);
         }
 
@@ -177,12 +188,10 @@ namespace MemoizeRedis
 
             if (log is null)
                 this.Logger = new LoggerConfiguration()
-                .WriteTo.File("MemoizeRedis.log")
                 .CreateLogger();
 
             _endpoint = new IPEndPoint(IPAddress.Parse(_settings.Server), 6379);
             _redis = new RedisClient(_endpoint);
-            _sha256 = SHA256.Create();
         }
 
         private Settings LoadConfiguration()
@@ -198,7 +207,6 @@ namespace MemoizeRedis
         public void Dispose()
         {
             _redis.Dispose();
-            _sha256.Dispose();
         }
     }
 }
